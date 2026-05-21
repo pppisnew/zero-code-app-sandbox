@@ -33,4 +33,5 @@ build/
 .vscode/
 
 ### Spring Boot ###
-!/src/main/resources/application-local.yml
+application-local.yml
+**/application-local.yml
