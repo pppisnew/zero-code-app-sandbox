@@ -1,0 +1,9 @@
+spring:
+  # mysql
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/peng_zero_code_add
+    username: root
+    password: Mysql88@
+
+
