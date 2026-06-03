@@ -24,5 +24,10 @@ public class CursorPageResponse<T> implements Serializable {
      */
     private LocalDateTime nextCursor;
 
+    /**
+     * 下一页游标 id（当前页最后一条的 id）
+     */
+    private Long nextCursorId;
+
     private static final long serialVersionUID = 1L;
 }

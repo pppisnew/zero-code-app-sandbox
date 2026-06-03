@@ -15,6 +15,7 @@ import com.peng.zerocodeappsandbox.model.vo.user.LoginUserVO;
 import com.peng.zerocodeappsandbox.model.vo.user.UserVO;
 import com.peng.zerocodeappsandbox.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.List;
@@ -133,7 +134,11 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>  implements U
     @Override
     public User getLoginUser(HttpServletRequest request) {
         // 先判断是否已登录
-        Object userObj = request.getSession().getAttribute(USER_LOGIN_STATE);
+        HttpSession session = request.getSession(false);
+        if (session == null) {
+            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
+        }
+        Object userObj = session.getAttribute(USER_LOGIN_STATE);
         User currentUser = userObj instanceof User ? (User) userObj : null;
         if (currentUser == null || currentUser.getId() == null) {
             throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
@@ -150,12 +155,16 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>  implements U
     @Override
     public boolean userLogout(HttpServletRequest request) {
         // 先判断是否已登录
-        Object userObj = request.getSession().getAttribute(USER_LOGIN_STATE);
+        HttpSession session = request.getSession(false);
+        if (session == null) {
+            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
+        }
+        Object userObj = session.getAttribute(USER_LOGIN_STATE);
         if (userObj == null) {
             throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
         }
-        // 移除登录态
-        request.getSession().removeAttribute(USER_LOGIN_STATE);
+        // 销毁登录会话
+        session.invalidate();
         return true;
     }
 

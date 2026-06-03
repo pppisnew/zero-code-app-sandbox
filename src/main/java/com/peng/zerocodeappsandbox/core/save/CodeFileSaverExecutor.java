@@ -1,6 +1,6 @@
 package com.peng.zerocodeappsandbox.core.save;
 
-import com.peng.zerocodeappsandbox.core.ai.model.HtmlCodeResult;
+import com.peng.zerocodeappsandbox.core.ai.model.CodeFileResult;
 import com.peng.zerocodeappsandbox.core.ai.model.MultiFileCodeResult;
 import com.peng.zerocodeappsandbox.exception.BusinessException;
 import com.peng.zerocodeappsandbox.exception.ErrorCode;
@@ -16,7 +16,7 @@ import java.io.File;
  */
 public class CodeFileSaverExecutor {
 
-    private static final HtmlCodeFileSaverTemplate htmlCodeFileSaver = new HtmlCodeFileSaverTemplate();
+    private static final SingleCodeFileSaverTemplate htmlCodeFileSaver = new SingleCodeFileSaverTemplate();
 
     private static final MultiFileCodeFileSaverTemplate multiFileCodeFileSaver = new MultiFileCodeFileSaverTemplate();
 
@@ -27,10 +27,10 @@ public class CodeFileSaverExecutor {
      * @param codeGenType 代码生成类型
      * @return 保存的目录
      */
-    public static File executeSaver(Object codeResult, CodeGenTypeEnum codeGenType) {
+    public static File executeSaver(Object codeResult, CodeGenTypeEnum codeGenType, Long appId) {
         return switch (codeGenType) {
-            case HTML -> htmlCodeFileSaver.saveCode((HtmlCodeResult) codeResult);
-            case MULTI_FILE -> multiFileCodeFileSaver.saveCode((MultiFileCodeResult) codeResult);
+            case HTML -> htmlCodeFileSaver.saveCode(appId, (CodeFileResult) codeResult);
+            case MULTI_FILE -> multiFileCodeFileSaver.saveCode(appId, (MultiFileCodeResult) codeResult);
             default -> throw new BusinessException(ErrorCode.SYSTEM_ERROR, "不支持的代码生成类型: " + codeGenType);
         };
     }

@@ -1,46 +1,27 @@
 package com.peng.zerocodeappsandbox.core.parser;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.peng.zerocodeappsandbox.core.ai.model.HtmlCodeResult;
+import com.peng.zerocodeappsandbox.core.ai.model.CodeFileResult;
 import com.peng.zerocodeappsandbox.core.ai.model.MultiFileCodeResult;
 import com.peng.zerocodeappsandbox.exception.BusinessException;
 import com.peng.zerocodeappsandbox.exception.ErrorCode;
 
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
  * 多文件代码解析器
- *
- * @author yupi
  */
 public class MultiFileCodeParser
         implements CodeParser<MultiFileCodeResult> {
 
     /**
-     * markdown json
+     * 清理 think / markdown
      */
-    private static final Pattern MARKDOWN_JSON_PATTERN =
+    private static final Pattern CLEAN_PATTERN =
             Pattern.compile(
-                    "```json\\s*([\\s\\S]*?)```",
-                    Pattern.CASE_INSENSITIVE
-            );
-
-    /**
-     * 提取最外层 JSON
-     */
-    private static final Pattern JSON_PATTERN =
-            Pattern.compile(
-                    "(\\{[\\s\\S]*})"
-            );
-
-    /**
-     * think 标签
-     */
-    private static final Pattern THINK_PATTERN =
-            Pattern.compile(
-                    "<think>[\\s\\S]*?</think>",
+                    "<think>[\\s\\S]*?</think>|```(?:json)?|```",
                     Pattern.CASE_INSENSITIVE
             );
 
@@ -59,8 +40,7 @@ public class MultiFileCodeParser
             String codeContent
     ) {
 
-        if (codeContent == null
-                || codeContent.isBlank()) {
+        if (isBlank(codeContent)) {
 
             throw new BusinessException(
                     ErrorCode.SYSTEM_ERROR,
@@ -70,48 +50,45 @@ public class MultiFileCodeParser
 
         try {
 
-            // 1. 去 think 标签
-            codeContent =
-                    THINK_PATTERN
+            // 1. 清理
+            String cleaned =
+                    CLEAN_PATTERN
                             .matcher(codeContent)
                             .replaceAll("")
+                            .replace("\uFEFF", "")
                             .trim();
 
-            // 2. 提取 markdown json
-            Matcher markdownMatcher =
-                    MARKDOWN_JSON_PATTERN
-                            .matcher(codeContent);
+            // 2. 提取 JSON
+            String json =
+                    extractJson(cleaned);
 
-            if (markdownMatcher.find()) {
+            // 3. 修复 JSON
+            json =
+                    json.replaceAll(
+                            ",\\s*([}\\]])",
+                            "$1"
+                    );
 
-                codeContent =
-                        markdownMatcher.group(1);
-            }
-
-            // 3. 提取最外层 JSON
-            Matcher jsonMatcher =
-                    JSON_PATTERN.matcher(codeContent);
-
-            if (jsonMatcher.find()) {
-
-                codeContent =
-                        jsonMatcher.group(1);
-            }
-
-            // 4. JSON 解析
+            // 4. 解析
             MultiFileCodeResult result =
                     OBJECT_MAPPER.readValue(
-                            codeContent,
+                            json,
                             MultiFileCodeResult.class
                     );
 
-            // 5. 校验
+            // 5. 校验 + 默认值
             validate(result);
-
-            // 6. 默认值
             fillDefaultValue(result);
 
             return result;
+
+        } catch (JsonProcessingException e) {
+
+            throw new BusinessException(
+                    ErrorCode.SYSTEM_ERROR,
+                    "JSON 解析失败: "
+                            + e.getOriginalMessage()
+            );
 
         } catch (Exception e) {
 
@@ -124,7 +101,74 @@ public class MultiFileCodeParser
     }
 
     /**
-     * 校验结果
+     * 提取最外层 JSON
+     */
+    private String extractJson(
+            String text
+    ) {
+
+        int start =
+                text.indexOf('{');
+
+        if (start < 0) {
+
+            throw new BusinessException(
+                    ErrorCode.SYSTEM_ERROR,
+                    "未检测到 JSON"
+            );
+        }
+
+        int level = 0;
+        boolean inString = false;
+        boolean escape = false;
+
+        for (int i = start; i < text.length(); i++) {
+
+            char c = text.charAt(i);
+
+            if (escape) {
+                escape = false;
+                continue;
+            }
+
+            if (c == '\\') {
+                escape = true;
+                continue;
+            }
+
+            if (c == '"') {
+                inString = !inString;
+                continue;
+            }
+
+            if (inString) {
+                continue;
+            }
+
+            if (c == '{') {
+                level++;
+            } else if (c == '}') {
+
+                level--;
+
+                if (level == 0) {
+
+                    return text.substring(
+                            start,
+                            i + 1
+                    );
+                }
+            }
+        }
+
+        throw new BusinessException(
+                ErrorCode.SYSTEM_ERROR,
+                "JSON 结构不完整"
+        );
+    }
+
+    /**
+     * 校验
      */
     private void validate(
             MultiFileCodeResult result
@@ -140,11 +184,10 @@ public class MultiFileCodeParser
             );
         }
 
-        for (HtmlCodeResult file :
+        for (CodeFileResult file :
                 result.getFiles()) {
 
-            if (file.getFilePath() == null
-                    || file.getFilePath().isBlank()) {
+            if (isBlank(file.getFilePath())) {
 
                 throw new BusinessException(
                         ErrorCode.SYSTEM_ERROR,
@@ -152,8 +195,7 @@ public class MultiFileCodeParser
                 );
             }
 
-            if (file.getContent() == null
-                    || file.getContent().isBlank()) {
+            if (isBlank(file.getContent())) {
 
                 throw new BusinessException(
                         ErrorCode.SYSTEM_ERROR,
@@ -164,33 +206,28 @@ public class MultiFileCodeParser
     }
 
     /**
-     * 填充默认值
+     * 默认值
      */
     private void fillDefaultValue(
             MultiFileCodeResult result
     ) {
 
-        if (result.getProjectName() == null
-                || result.getProjectName().isBlank()) {
-
-            result.setProjectName(
-                    "generated-project"
-            );
+        if (isBlank(result.getProjectName())) {
+            result.setProjectName("generated-project");
         }
 
         if (result.getDescription() == null) {
             result.setDescription("");
         }
 
-        for (HtmlCodeResult file :
+        for (CodeFileResult file :
                 result.getFiles()) {
 
-            // 推断 fileType
-            if (file.getFileType() == null
-                    || file.getFileType().isBlank()) {
+            if (isBlank(file.getFileType())) {
 
                 String path =
-                        file.getFilePath();
+                        file.getFilePath()
+                                .toLowerCase();
 
                 if (path.endsWith(".html")) {
                     file.setFileType("html");
@@ -203,9 +240,7 @@ public class MultiFileCodeParser
                 }
             }
 
-            // 自动设置 entryFile
-            if ((result.getEntryFile() == null
-                    || result.getEntryFile().isBlank())
+            if (isBlank(result.getEntryFile())
                     && file.getFilePath()
                     .endsWith(".html")) {
 
@@ -214,5 +249,15 @@ public class MultiFileCodeParser
                 );
             }
         }
+    }
+
+    /**
+     * blank
+     */
+    private boolean isBlank(
+            String str
+    ) {
+        return str == null
+                || str.isBlank();
     }
 }

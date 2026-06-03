@@ -5,7 +5,7 @@ import lombok.Data;
 
 @Description("完整可运行的 HTML 内容，必须包含 <!DOCTYPE html>")
 @Data
-public class HtmlCodeResult {
+public class CodeFileResult {
 
     @Description("文件路径，例如 index.html")
     private String filePath;

@@ -19,6 +19,6 @@ public class MultiFileCodeResult {
     private String description;
 
     @Description("生成的文件列表")
-    private List<HtmlCodeResult> files;
+    private List<CodeFileResult> files;
 }
 

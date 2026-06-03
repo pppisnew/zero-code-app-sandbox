@@ -1,8 +1,10 @@
 package com.peng.zerocodeappsandbox.core.ai;
 
-import com.peng.zerocodeappsandbox.core.ai.model.HtmlCodeResult;
+import com.peng.zerocodeappsandbox.core.ai.model.CodeFileResult;
 import com.peng.zerocodeappsandbox.core.ai.model.MultiFileCodeResult;
+import dev.langchain4j.service.MemoryId;
 import dev.langchain4j.service.SystemMessage;
+import dev.langchain4j.service.UserMessage;
 import reactor.core.publisher.Flux;
 
 public interface AiCodeGeneratorService {
@@ -14,7 +16,7 @@ public interface AiCodeGeneratorService {
      * @return 生成的代码结果
      */
     @SystemMessage(fromResource = "prompt/html-system-prompt.txt")
-    HtmlCodeResult generateHtmlCode(String userMessage);
+    CodeFileResult generateHtmlCode(@MemoryId Long memoryId, @UserMessage String userMessage);
 
     /**
      * 生成多文件代码
@@ -23,7 +25,7 @@ public interface AiCodeGeneratorService {
      * @return 生成的代码结果
      */
     @SystemMessage(fromResource = "prompt/multi-file-system-prompt.txt")
-    MultiFileCodeResult generateMultiFileCode(String userMessage);
+    MultiFileCodeResult generateMultiFileCode(@MemoryId Long memoryId, @UserMessage String userMessage);
 
     /**
      * 生成 HTML 代码（流式）
@@ -32,7 +34,7 @@ public interface AiCodeGeneratorService {
      * @return 生成的代码结果
      */
     @SystemMessage(fromResource = "prompt/html-system-prompt.txt")
-    Flux<String> generateHtmlCodeStream(String userMessage);
+    Flux<String> generateHtmlCodeStream(@MemoryId Long memoryId, @UserMessage String userMessage);
 
     /**
      * 生成多文件代码（流式）
@@ -41,7 +43,6 @@ public interface AiCodeGeneratorService {
      * @return 生成的代码结果
      */
     @SystemMessage(fromResource = "prompt/multi-file-system-prompt.txt")
-    Flux<String> generateMultiFileCodeStream(String userMessage);
+    Flux<String> generateMultiFileCodeStream(@MemoryId Long memoryId, @UserMessage String userMessage);
 
 }
-

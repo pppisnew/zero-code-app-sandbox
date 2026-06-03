@@ -1,8 +1,8 @@
 package com.peng.zerocodeappsandbox.core.save;
 
 import cn.hutool.core.io.FileUtil;
-import cn.hutool.core.util.IdUtil;
 import cn.hutool.core.util.StrUtil;
+import com.peng.zerocodeappsandbox.constant.AppConstant;
 import com.peng.zerocodeappsandbox.exception.BusinessException;
 import com.peng.zerocodeappsandbox.exception.ErrorCode;
 import com.peng.zerocodeappsandbox.model.enums.CodeGenTypeEnum;
@@ -17,76 +17,181 @@ import java.nio.charset.StandardCharsets;
  */
 public abstract class CodeFileSaverTemplate<T> {
 
-    // 文件保存根目录
-    protected static final String FILE_SAVE_ROOT_DIR = System.getProperty("user.dir") + "/tmp/code_output";
+    /**
+     * 文件保存根目录
+     */
+    protected static final String FILE_SAVE_ROOT_DIR = AppConstant.CODE_OUTPUT_ROOT_DIR;
 
     /**
-     * 模板方法：保存代码的标准流程
+     * 模板方法：保存代码
      *
-     * @param result 代码结果对象
-     * @return 保存的目录
+     * @param appId 应用 id
+     * @param result 代码结果
+     * @return 保存目录
      */
-    public final File saveCode(T result) {
-        // 1. 验证输入
+    public final File saveCode(
+            Long appId,
+            T result
+    ) {
+
+        // 1. 校验 appId
+        validateAppId(appId);
+
+        // 2. 校验结果
         validateInput(result);
-        // 2. 构建唯一目录
-        String baseDirPath = buildUniqueDir();
-        // 3. 保存文件（具体实现由子类提供）
+
+        // 3. 构建应用目录
+        String baseDirPath = buildAppDir(appId);
+
+        // 4. 保存文件
         saveFiles(result, baseDirPath);
-        // 4. 返回目录文件对象
+
+        // 5. 返回目录
         return new File(baseDirPath);
     }
 
     /**
-     * 验证输入参数（可由子类覆盖）
-     *
-     * @param result 代码结果对象
+     * 校验 appId
      */
-    protected void validateInput(T result) {
-        if (result == null) {
-            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "代码结果对象不能为空");
+    protected void validateAppId(Long appId) {
+
+        if (appId == null || appId <= 0) {
+
+            throw new BusinessException(
+                    ErrorCode.PARAMS_ERROR,
+                    "appId 非法"
+            );
         }
     }
 
     /**
-     * 构建唯一目录路径
-     *
-     * @return 目录路径
+     * 输入校验（子类可扩展）
      */
-    protected final String buildUniqueDir() {
-        String codeType = getCodeType().getValue();
-        String uniqueDirName = StrUtil.format("{}_{}", codeType, IdUtil.getSnowflakeNextIdStr());
-        String dirPath = FILE_SAVE_ROOT_DIR + File.separator + uniqueDirName;
+    protected void validateInput(T result) {
+
+        if (result == null) {
+
+            throw new BusinessException(
+                    ErrorCode.SYSTEM_ERROR,
+                    "代码结果不能为空"
+            );
+        }
+    }
+
+    /**
+     * 构建应用目录
+     */
+    protected final String buildAppDir(
+            Long appId
+    ) {
+
+        String dirPath =
+                FILE_SAVE_ROOT_DIR
+                        + File.separator
+                        + appId
+                        + File.separator
+                        + "source";
+
         FileUtil.mkdir(dirPath);
+
         return dirPath;
     }
 
     /**
-     * 写入单个文件的工具方法
-     *
-     * @param dirPath  目录路径
-     * @param filename 文件名
-     * @param content  文件内容
+     * 写入代码文件
      */
-    protected final void writeToFile(String dirPath, String filename, String content) {
-        if (StrUtil.isNotBlank(content)) {
-            String filePath = dirPath + File.separator + filename;
-            FileUtil.writeString(content, filePath, StandardCharsets.UTF_8);
+    protected final void writeCodeFile(
+            String baseDirPath,
+            String filePath,
+            String content
+    ) {
+
+        validateFile(filePath, content);
+
+        String safeFilePath =
+                buildSafeFilePath(filePath);
+
+        String fullFilePath =
+                baseDirPath
+                        + File.separator
+                        + safeFilePath;
+
+        // 创建父目录
+        File parentFile =
+                new File(fullFilePath).getParentFile();
+
+        if (parentFile != null) {
+            FileUtil.mkdir(parentFile);
+        }
+
+        // 写入文件
+        FileUtil.writeString(
+                content,
+                fullFilePath,
+                StandardCharsets.UTF_8
+        );
+    }
+
+    /**
+     * 文件基础校验
+     */
+    protected void validateFile(
+            String filePath,
+            String content
+    ) {
+
+        if (StrUtil.isBlank(filePath)) {
+
+            throw new BusinessException(
+                    ErrorCode.SYSTEM_ERROR,
+                    "文件路径不能为空"
+            );
+        }
+
+        if (StrUtil.isBlank(content)) {
+
+            throw new BusinessException(
+                    ErrorCode.SYSTEM_ERROR,
+                    "文件内容不能为空"
+            );
         }
     }
 
     /**
-     * 获取代码类型（由子类实现）
-     *
-     * @return 代码生成类型
+     * 构建安全文件路径
+     */
+    protected final String buildSafeFilePath(
+            String filePath
+    ) {
+
+        // windows 路径兼容
+        filePath = filePath.replace("\\", "/");
+
+        // 去掉开头 /
+        filePath = StrUtil.removePrefix(filePath, "/");
+
+        // 防止路径穿越
+        if (filePath.contains("..")) {
+
+            throw new BusinessException(
+                    ErrorCode.SYSTEM_ERROR,
+                    "非法文件路径"
+            );
+        }
+
+        return filePath;
+    }
+
+    /**
+     * 获取代码类型
      */
     protected abstract CodeGenTypeEnum getCodeType();
 
     /**
-     * 保存文件的具体实现（由子类实现）
-     *
-     * @param result      代码结果对象
-     * @param baseDirPath 基础目录路径
+     * 保存文件
      */
-    protected abstract void saveFiles(T result, String baseDirPath);
+    protected abstract void saveFiles(
+            T result,
+            String baseDirPath
+    );
 }

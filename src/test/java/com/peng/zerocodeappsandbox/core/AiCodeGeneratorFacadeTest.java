@@ -8,6 +8,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import reactor.core.publisher.Flux;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -37,7 +38,8 @@ class AiCodeGeneratorFacadeTest {
 
         File result = aiCodeGeneratorFacade.generateAndSaveCode(
                 "生成一个购物网站首页，要求科技风格",
-                CodeGenTypeEnum.HTML
+                CodeGenTypeEnum.HTML,
+                1L
         );
 
         assertNotNull(result);
@@ -57,7 +59,8 @@ class AiCodeGeneratorFacadeTest {
 
         File result = aiCodeGeneratorFacade.generateAndSaveCode(
                 "生成一个 Todo List 应用，包含 HTML、CSS、JS",
-                CodeGenTypeEnum.MULTI_FILE
+                CodeGenTypeEnum.MULTI_FILE,
+                2L
         );
 
         assertNotNull(result);
@@ -73,12 +76,13 @@ class AiCodeGeneratorFacadeTest {
      * 流式 HTML 生成测试
      */
     @Test
-    void generateAndSaveHtmlCodeStream() {
+    void generateAndSaveHtmlCodeStream() throws IOException {
 
         Flux<String> flux =
                 aiCodeGeneratorFacade.generateAndSaveCodeStream(
                         "生成一个个人博客首页",
-                        CodeGenTypeEnum.HTML
+                        CodeGenTypeEnum.HTML,
+                        3L
                 );
 
         String result = flux
@@ -92,6 +96,15 @@ class AiCodeGeneratorFacadeTest {
         assertNotNull(result);
 
         assertFalse(result.isEmpty());
+
+        // 保存 AI 原始响应（强烈推荐）
+        Files.writeString(
+                Path.of("tmp/ai-result-single.json"),
+                result,
+                StandardCharsets.UTF_8
+        );
+
+        log.info("AI 原始响应已保存");
 
         log.info("流式生成完成");
     }
@@ -102,7 +115,8 @@ class AiCodeGeneratorFacadeTest {
         Flux<String> flux =
                 aiCodeGeneratorFacade.generateAndSaveCodeStream(
                         "生成一个音乐播放器网页",
-                        CodeGenTypeEnum.MULTI_FILE
+                        CodeGenTypeEnum.MULTI_FILE,
+                        4L
                 );
 
         String result = flux
@@ -116,14 +130,6 @@ class AiCodeGeneratorFacadeTest {
         assertNotNull(result);
 
         assertFalse(result.isEmpty());
-
-        // 输出完整 AI 返回
-        log.info("""
-            
-            ================= AI 完整返回 =================
-            {}
-            =================================================
-            """, result);
 
         // 保存 AI 原始响应（强烈推荐）
         Files.writeString(

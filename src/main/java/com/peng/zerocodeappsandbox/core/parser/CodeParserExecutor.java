@@ -12,7 +12,7 @@ import com.peng.zerocodeappsandbox.model.enums.CodeGenTypeEnum;
  */
 public class CodeParserExecutor {
 
-    private static final HtmlCodeParser htmlCodeParser = new HtmlCodeParser();
+    private static final SingleCodeFileParser CODE_FILE_PARSER = new SingleCodeFileParser();
 
     private static final MultiFileCodeParser multiFileCodeParser = new MultiFileCodeParser();
 
@@ -25,7 +25,7 @@ public class CodeParserExecutor {
      */
     public static Object executeParser(String codeContent, CodeGenTypeEnum codeGenType) {
         return switch (codeGenType) {
-            case HTML -> htmlCodeParser.parseCode(codeContent);
+            case HTML -> CODE_FILE_PARSER.parseCode(codeContent);
             case MULTI_FILE -> multiFileCodeParser.parseCode(codeContent);
             default -> throw new BusinessException(ErrorCode.SYSTEM_ERROR, "不支持的代码生成类型: " + codeGenType);
         };
